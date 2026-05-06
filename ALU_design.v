@@ -1,4 +1,4 @@
-module Eight_bit_ALU_rtl_design #(parameter WIDTH = 4)
+module ALU_design #(parameter WIDTH = 4)
 (
     OPA, OPB, CIN, CLK, RST, CMD, CE, MODE, INP_VAD,
     COUT, OFLOW, RES, G, E, L, ERR
@@ -17,8 +17,12 @@ output reg E = 1'bz;
 output reg L = 1'bz;
 output reg ERR = 1'bz;
 
+reg [2*WIDTH-1:0] MUL_TEMP;
+reg [1:0] mul_state=2'b0;
 reg check;
-reg [WIDTH-1:0] OPA_1, OPB_1, OPA_NEW, OPB_NEW;
+reg [WIDTH-1:0] OPA_1, OPB_1;
+reg [WIDTH-1:0] OPA_NEW='bx;
+reg [WIDTH-1:0] OPB_NEW='bx;
 reg signed [WIDTH-1:0] SIGOPA, SIGOPB, SIGOUT;
 
 always @(posedge CLK or posedge RST)
@@ -37,13 +41,13 @@ begin
     begin
         if (MODE)
         begin
-            RES <= 'b0;
-            COUT <= 1'b0;
-            OFLOW <= 1'b0;
-            G <= 1'b0;
-            E <= 1'b0;
-            L <= 1'b0;
-            ERR <= 1'b0;
+           RES<='b0;
+           COUT<=1'b0;
+           OFLOW<=1'b0;
+           G<=1'b0;
+           E<=1'b0;
+           L<=1'b0;
+           ERR<=1'b0;
 
             if (check)
             begin
@@ -118,34 +122,46 @@ begin
 
                     4'b1001:
                     begin
-                        if (OPA_NEW != 'bx && OPB_NEW != 'bx)
-                        begin
-                            RES <= OPA_NEW * OPB_NEW;
-                            OPA_NEW <= 'bx;
-                            OPB_NEW <= 'bx;
-                        end
-                        else
-                        begin
-                            OPA_NEW <= OPA + 1;
-                            OPB_NEW <= OPB + 1;
+                       case(mul_state)
+                            2'd0: begin
+                            OPA_NEW <= OPA+1;
+                            OPB_NEW <= OPB+1;
+                            mul_state <= 2'd1;
+                            RES <= RES;
+                            end
+                            2'd1: begin
+                            MUL_TEMP <= OPA_NEW * OPB_NEW;
+                            mul_state <= 2'd2;
                             RES <= 'bx;
-                        end
+                            end
+                            2'd2: begin
+                            RES <= MUL_TEMP;
+                            mul_state <= 2'd0;
+                            end
+                            default:mul_state<=2'b0;
+                        endcase 
+
                     end
 
                     4'b1010:
                     begin
-                        if (OPA_NEW != 'bx && OPB_NEW != 'bx)
-                        begin
-                            RES <= OPA_NEW * OPB_NEW;
-                            OPA_NEW <= 'bx;
-                            OPB_NEW <= 'bx;
-                        end
-                        else
-                        begin
-                            OPA_NEW <= OPA << 1;
+                        case(mul_state)
+                            2'd0: begin
+                            OPA_NEW <= OPA<<1;
                             OPB_NEW <= OPB;
+                            mul_state <= 2'd1;
+                            RES <= RES;
+                            end
+                            2'd1: begin
+                            MUL_TEMP <= OPA_NEW * OPB_NEW;
+                            mul_state <= 2'd2;
                             RES <= 'bx;
-                        end
+                            end
+                            2'd2: begin
+                            RES <= MUL_TEMP;
+                            mul_state <= 2'd0;
+                            end
+                        endcase
                     end
 
                     4'b1011:
@@ -260,6 +276,7 @@ begin
         G <= 1'b0;
         E <= 1'b0;
         L <= 1'b0;
+        ERR<=1'b0;
     end
 end
 
